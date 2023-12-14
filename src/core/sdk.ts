@@ -6,9 +6,10 @@ import { WalletAuthorizationAction } from './actions/WalletAuthorizationAction';
 import { MainApi } from './api/main-api';
 import { Contract } from './contracts/Contract';
 import { ContractManifest } from './contracts/ContractManifest';
-import { AssetType, CreateWalletAuthorizationRequest } from './types';
+import { AssetType, CreateWalletAuthorizationRequest, EncodedFunctionOutput, EncodedFunctionParameter, ReadFromContractResult } from './types';
 import * as ExecEnv from '../execenv/modal';
 import * as ExecEnvProvider from '../execenv/provider';
+import { ContractArbitraryCallAction } from "./actions/ContractArbitraryCallAction";
 
 export class Dev3SDK {
 
@@ -42,6 +43,23 @@ export class Dev3SDK {
         message_to_sign: payloadResponse.payload,
       });
     return new WalletAuthorizationAction(generatedAction);
+  }
+
+  async contractArbitraryCall(
+    options: {
+      to: string,
+      from: string,
+      data?: string,
+      value?: string
+    }
+  ): Promise<ContractArbitraryCallAction> {
+    const generatedAction = await MainApi.instance().createContractArbitraryCallRequest({
+      contract_address: options.to,
+      function_data: options.data || "0x",
+      eth_amount: options.value || "0",
+      caller_address: options.from
+    });
+    return new ContractArbitraryCallAction(generatedAction);
   }
 
   async getManifests(
@@ -102,6 +120,37 @@ export class Dev3SDK {
       id
     );
     return new ContractDeployAction(result);
+  }
+
+  async readContract(
+    contractAddress: string,
+    functionName: string,
+    functionParams: EncodedFunctionParameter[],
+    outputParams: EncodedFunctionOutput[]
+  ): Promise<ReadFromContractResult> {
+    return MainApi.instance().readContract({
+      caller_address: "0x0000000000000000000000000000000000000000",
+      contract_address: contractAddress,
+      function_name: functionName,
+      function_params: functionParams,
+      output_params: outputParams
+    });
+  }
+
+  async writeContract(
+    contractAddress: string,
+    functionName: string,
+    functionParams: EncodedFunctionParameter[],
+    ethAmount: string,
+  ): Promise<ContractCallAction> {
+    return new ContractCallAction(
+      await MainApi.instance().createFunctionCallRequest({
+        contract_address: contractAddress,
+        function_name: functionName,
+        function_params: functionParams,
+        eth_amount: ethAmount,
+      })
+    );
   }
 
   async requestTokens(
